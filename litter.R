@@ -627,6 +627,8 @@ anova.lme(lme(diff ~ Trt, random=~1|Ring,
 p12 <- ggplot(diffDF) +
     geom_point(aes(Trt, diff)) +
     ylab(expression(paste(Delta, " leaf life span (yr)")))+
-    xlab("2016 to 2018 over 2012 to 2015")
+    xlab("2016 to 2018 minus 2012 to 2015")
 
+pdf("output/delta_leaf_life_span.pdf")
 plot(p12)
+dev.off()
