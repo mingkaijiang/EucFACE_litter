@@ -1,11 +1,23 @@
+##### Main program to look at EucFACE litter data over 2012-2018
+
+################################ set up ########################################
+#### system time
 Sys.setenv(TZ="Australia/Sydney")
 
+#### read stuff
 library(HIEv)
 setToken(tokenfile="~/Documents/Research/Projects/EucFACE_C_Balance/R_repo/tokenfile.txt") 
 
 if(!require(pacman))install.packages("pacman")
 pacman::p_load(dplyr, doBy, mgcv, stringr, lubridate, reshape, ggplot2, akima, imputeTS,lme4)
 
+#### Create output folder
+if(!dir.exists("output")) {
+    dir.create("output", showWarnings = FALSE)
+}
+
+################################ read in data ########################################
+#### prepare necessary dataframes
 source("make_litter_c_flux.R")
 c_fraction <- 0.5
 frass_basket_area <- 0.19
@@ -34,9 +46,11 @@ lit2$Start_date <- parse_date_time(substr(lit2$Source,22,29),"y m d")
 lit2$End_date <- parse_date_time(substr(lit2$Source,31,38),"y m d")
 lit2$days.past <- with(lit2,as.numeric(End_date - Start_date))
 
-# Conversion factor from g basket-1 to mg m-2
+### Conversion factor from g basket-1 to mg m-2
 conv <- c_fraction * 1000 / frass_basket_area
 
+
+### look at 2017 to 2018
 litter1718 <- dplyr::mutate(lit2, 
                         Date = as.Date(lit2$Date, format = "%d/%m/%Y"),
                         Twig = as.numeric(Twig) * conv / days.past,
@@ -55,6 +69,7 @@ litter1718_a <- as.data.frame(dplyr::rename(litter1718_a,
                                         leaf_flux = Leaf))
 litter1718_a$Days <- as.numeric(with(litter1718_a, End_date - Start_date)) + 1
 
+#### combined all time series data together
 litter_all <- rbind(lit,litter1718_a)
 litter_all$Year <- year(litter_all$Date)
 litter_all$CO2Treat <- "Amb"
@@ -75,6 +90,7 @@ with(subset(litter_annual,Year > 2012 & Year < 2019),
      plot(Year,leaf_tot+twig_tot+bark_tot,ylim=c(0,500),col=as.factor(CO2Treat),
           ylab="Total Litter (gC m-2 yr-1)"))
 
+#### investigate change in lai
 source("make_dLAI_litter.R")
 source("canopy_C_pool/make_smooth_lai_variable.R")
 source("canopy_C_pool/download_canopy_c_related_data.R")
@@ -118,8 +134,7 @@ with(subset(litter_all,year(Date)==2014),points(yday(Date),bark_flux,col="blue")
 with(subset(litter_all,year(Date)==2017),points(yday(Date),bark_flux,col="red"))
 
 
-
-### do statistics to 2017
+#### do statistics to 2017
 dlai$Year <- year(dlai$Date)
 dlai_yrly <- summaryBy(dLEAF + leaflit~Ring+Year, FUN=sum, dat=dlai,na.rm=T)
 dlai_yrly$CO2Treat <- "Amb"
@@ -127,7 +142,7 @@ dlai_yrly$CO2Treat[dlai_yrly$Ring %in% c(1,4,5)] <- "Elev"
 with(subset(dlai_yrly,Year > 2012 & Year < 2019),
      plot(Year,dLEAF.sum+leaflit.sum,col=as.factor(CO2Treat),ylim=c(0,300)))
 
-## annual 2017
+### annual 2017
 t2017 <- subset(dlai_yrly, Year == 2017)
 t2017$tot <- t2017$dLEAF.sum + t2017$leaflit.sum
 
@@ -137,7 +152,7 @@ anova.lme(mod1,
           type="sequential", 
           adjustSigma = FALSE)
 
-## daily 2017
+### daily 2017
 dlai2017 <- subset(dlai, Year == 2017)
 dlai2017$tot <- with(dlai2017, dLEAF + leaflit)
 
@@ -151,7 +166,7 @@ anova.lme(mod2,
           type="sequential", 
           adjustSigma = FALSE)
 
-## add cumulative leaf production
+### add cumulative leaf production
 dlai2017$Date0 <- as.numeric(dlai2017$Date - min(dlai2017$Date))
 for (i in 1:6) {
    dlai2017[dlai2017$Ring==i, "cumsum"] <- cumsum(dlai2017[dlai2017$Ring==i, "tot"])
@@ -163,3 +178,57 @@ mod3 <- lme(cumsum~CO2Treat+Date0+CO2Treat*Date0, random=~1|Ring,
 anova.lme(mod2, 
           type="sequential", 
           adjustSigma = FALSE)
+
+
+
+#### Look at eCO2/aCO2 over the entire time series
+trtDF1 <- summaryBy(Leafprod~Date+CO2Treat+Start_date+End_date+Days+Year, FUN=c(mean, sd), data=lit_a)
+trtDF2 <- data.frame(unique(trtDF1$Date), unique(trtDF1$Start_date), unique(trtDF1$End_date))
+colnames(trtDF2) <- c("Date", "Start_date", "End_date")
+
+for (i in trtDF2$Date) {
+    trtDF2[trtDF2$Date == i, "aCO2"] <- trtDF1$Leafprod.mean[trtDF1$Date == i & trtDF1$CO2Treat == "Amb"]
+    trtDF2[trtDF2$Date == i, "eCO2"] <- trtDF1$Leafprod.mean[trtDF1$Date == i & trtDF1$CO2Treat == "Elev"]
+    
+}
+
+trtDF2$Ratio <- with(trtDF2, eCO2/aCO2)
+
+### test the slope
+mod.lm <- lm(Ratio ~ Date, data=trtDF2)
+
+summary(mod.lm)
+a <- coefficients(mod.lm)[[2]]
+b <- coefficients(mod.lm)[[1]]
+rsq <- summary(mod.lm)$adj.r.squared
+
+p1 <- ggplot(trtDF2) +
+    geom_point(aes(Date, Ratio)) +
+    geom_smooth(aes(Date, Ratio), method = lm)+
+    labs(x="Year", y="eCO2/aCO2")+
+    theme_linedraw()+
+    theme(panel.grid.minor=element_blank(),
+          axis.title.x = element_text(size=14), 
+          axis.text.x = element_text(size=12),
+          axis.text.y=element_text(size=12),
+          axis.title.y=element_text(size=14),
+          legend.text=element_text(size=12),
+          legend.title=element_text(size=14),
+          panel.grid.major=element_blank(),
+          legend.position="none")+
+    geom_hline(yintercept = 1.0)+
+    annotate(geom="text", x=as.Date("2013-04-01"), y=1.6, 
+             label=paste0("y = ", round(a,4), "x + ", round(b,4)), 
+             color="black") +
+    annotate(geom="text", x=as.Date("2013-04-01"), y=1.55, 
+             label=paste0("r2 = ", round(rsq, 2), ", p < 0.0001"))
+
+pdf("output/leaf_litter_ratio_over_time.pdf")
+plot(p1)
+dev.off()
+
+
+
+
+
+
