@@ -9,7 +9,8 @@ library(HIEv)
 setToken(tokenfile="~/Documents/Research/Projects/EucFACE_C_Balance/R_repo/tokenfile.txt") 
 
 if(!require(pacman))install.packages("pacman")
-pacman::p_load(dplyr, doBy, mgcv, stringr, lubridate, reshape, ggplot2, akima, imputeTS,lme4)
+pacman::p_load(dplyr, doBy, mgcv, stringr, lubridate, reshape, ggplot2, akima, imputeTS,lme4,
+               cowplot)
 
 #### Create output folder
 if(!dir.exists("output")) {
@@ -223,12 +224,409 @@ p1 <- ggplot(trtDF2) +
     annotate(geom="text", x=as.Date("2013-04-01"), y=1.55, 
              label=paste0("r2 = ", round(rsq, 2), ", p < 0.0001"))
 
-pdf("output/leaf_litter_ratio_over_time.pdf")
+pdf("output/leaf_litter_ratio_over_time_all_time_points.pdf")
 plot(p1)
 dev.off()
 
+### look at total new leaf production (i.e. litterfall + dLAI) at annual timestep
+dlai_yrly$tot_prod <- with(dlai_yrly, (dLEAF.sum + leaflit.sum))
+dlai_trt <- summaryBy(dLEAF.sum+leaflit.sum+tot_prod~Year+CO2Treat, data=dlai_yrly, FUN=c(mean, sd))
+
+ann_prod <- data.frame(c(2012:2018), NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)
+colnames(ann_prod) <- c("Year", "dLEAF_aCO2_mean", "dLEAF_eCO2_mean",
+                        "dLEAF_aCO2_sd", "dLEAF_eCO2_sd",
+                        "lit_aCO2_mean", "lit_eCO2_mean",
+                        "lit_aCO2_sd", "lit_eCO2_sd",
+                        "tot_aCO2_mean", "tot_eCO2_mean",
+                        "tot_aCO2_sd", "tot_eCO2_sd")
+
+for (i in ann_prod$Year) {
+    ann_prod[ann_prod$Year == i, "tot_aCO2_mean"] <- dlai_trt$tot_prod.mean[dlai_trt$Year == i & dlai_trt$CO2Treat == "Amb"]
+    ann_prod[ann_prod$Year == i, "tot_eCO2_mean"] <- dlai_trt$tot_prod.mean[dlai_trt$Year == i & dlai_trt$CO2Treat == "Elev"]
+    
+    ann_prod[ann_prod$Year == i, "tot_aCO2_sd"] <- dlai_trt$tot_prod.sd[dlai_trt$Year == i & dlai_trt$CO2Treat == "Amb"]
+    ann_prod[ann_prod$Year == i, "tot_eCO2_sd"] <- dlai_trt$tot_prod.sd[dlai_trt$Year == i & dlai_trt$CO2Treat == "Elev"]
+    
+    ann_prod[ann_prod$Year == i, "dLEAF_aCO2_mean"] <- dlai_trt$dLEAF.sum.mean[dlai_trt$Year == i & dlai_trt$CO2Treat == "Amb"]
+    ann_prod[ann_prod$Year == i, "dLEAF_eCO2_mean"] <- dlai_trt$dLEAF.sum.mean[dlai_trt$Year == i & dlai_trt$CO2Treat == "Elev"]
+    
+    ann_prod[ann_prod$Year == i, "dLEAF_aCO2_sd"] <- dlai_trt$dLEAF.sum.sd[dlai_trt$Year == i & dlai_trt$CO2Treat == "Amb"]
+    ann_prod[ann_prod$Year == i, "dLEAF_eCO2_sd"] <- dlai_trt$dLEAF.sum.sd[dlai_trt$Year == i & dlai_trt$CO2Treat == "Elev"]
+    
+    ann_prod[ann_prod$Year == i, "lit_aCO2_mean"] <- dlai_trt$leaflit.sum.mean[dlai_trt$Year == i & dlai_trt$CO2Treat == "Amb"]
+    ann_prod[ann_prod$Year == i, "lit_eCO2_mean"] <- dlai_trt$leaflit.sum.mean[dlai_trt$Year == i & dlai_trt$CO2Treat == "Elev"]
+    
+    ann_prod[ann_prod$Year == i, "lit_aCO2_sd"] <- dlai_trt$leaflit.sum.sd[dlai_trt$Year == i & dlai_trt$CO2Treat == "Amb"]
+    ann_prod[ann_prod$Year == i, "lit_eCO2_sd"] <- dlai_trt$leaflit.sum.sd[dlai_trt$Year == i & dlai_trt$CO2Treat == "Elev"]
+    
+}
+
+ann_prod$tot_ratio <- with(ann_prod, tot_eCO2_mean/tot_aCO2_mean)
+ann_prod$dLEAF_ratio <- with(ann_prod, dLEAF_eCO2_mean/dLEAF_aCO2_mean)
+ann_prod$lit_ratio <- with(ann_prod, lit_eCO2_mean/lit_aCO2_mean)
+
+### test the slope
+mod2.lm <- lm(tot_ratio ~ Year, data=ann_prod)
+
+summary(mod2.lm)
+a <- coefficients(mod2.lm)[[2]]
+b <- coefficients(mod2.lm)[[1]]
+rsq <- summary(mod2.lm)$adj.r.squared
+
+p2 <- ggplot(ann_prod) +
+    geom_point(aes(Year, tot_ratio)) +
+    geom_smooth(aes(Year, tot_ratio), method = lm)+
+    labs(x="Year", y="eCO2/aCO2")+
+    theme_linedraw()+
+    theme(panel.grid.minor=element_blank(),
+          axis.title.x = element_text(size=14), 
+          axis.text.x = element_text(size=12),
+          axis.text.y=element_text(size=12),
+          axis.title.y=element_text(size=14),
+          legend.text=element_text(size=12),
+          legend.title=element_text(size=14),
+          panel.grid.major=element_blank(),
+          legend.position="none")+
+    geom_hline(yintercept = 1.0)+
+    annotate(geom="text", x=2013, y=1.6, 
+             label=paste0("y = ", round(a,4), "x + ", round(b,4)), 
+             color="black") +
+    annotate(geom="text", x=2013, y=1.55, 
+             label=paste0("r2 = ", round(rsq, 2), ", p = 0.3"))
+
+plot(p2)
+
+pdf("output/annual_leaf_production_ratio_over_time.pdf")
+plot(p2)
+dev.off()
+
+### test the slope
+mod3.lm <- lm(dLEAF_ratio ~ Year, data=ann_prod)
+
+summary(mod3.lm)
+a <- coefficients(mod3.lm)[[2]]
+b <- coefficients(mod3.lm)[[1]]
+rsq <- summary(mod3.lm)$adj.r.squared
+
+p3 <- ggplot(ann_prod) +
+    geom_point(aes(Year, dLEAF_ratio)) +
+    geom_smooth(aes(Year, dLEAF_ratio), method = lm)+
+    labs(x="Year", y="eCO2/aCO2")+
+    theme_linedraw()+
+    theme(panel.grid.minor=element_blank(),
+          axis.title.x = element_text(size=14), 
+          axis.text.x = element_text(size=12),
+          axis.text.y=element_text(size=12),
+          axis.title.y=element_text(size=14),
+          legend.text=element_text(size=12),
+          legend.title=element_text(size=14),
+          panel.grid.major=element_blank(),
+          legend.position="none")+
+    geom_hline(yintercept = 1.0)+
+    annotate(geom="text", x=2013, y=1.6, 
+             label=paste0("y = ", round(a,4), "x + ", round(b,4)), 
+             color="black") +
+    annotate(geom="text", x=2013, y=1.55, 
+             label=paste0("r2 = ", round(rsq, 2), ", p = 0.3"))
+
+plot(p3)
+
+
+### test the slope
+mod4.lm <- lm(lit_ratio ~ Year, data=ann_prod)
+
+summary(mod4.lm)
+a <- coefficients(mod4.lm)[[2]]
+b <- coefficients(mod4.lm)[[1]]
+rsq <- summary(mod4.lm)$adj.r.squared
+
+p4 <- ggplot(ann_prod) +
+    geom_point(aes(Year, lit_ratio)) +
+    geom_smooth(aes(Year, lit_ratio), method = lm)+
+    labs(x="Year", y="eCO2/aCO2")+
+    theme_linedraw()+
+    theme(panel.grid.minor=element_blank(),
+          axis.title.x = element_text(size=14), 
+          axis.text.x = element_text(size=12),
+          axis.text.y=element_text(size=12),
+          axis.title.y=element_text(size=14),
+          legend.text=element_text(size=12),
+          legend.title=element_text(size=14),
+          panel.grid.major=element_blank(),
+          legend.position="none")+
+    geom_hline(yintercept = 1.0)+
+    annotate(geom="text", x=2013, y=1.6, 
+             label=paste0("y = ", round(a,4), "x + ", round(b,4)), 
+             color="black") +
+    annotate(geom="text", x=2013, y=1.55, 
+             label=paste0("r2 = ", round(rsq, 2), ", p = 0.3"))
+
+plot(p4)
 
 
 
 
+#### Look at eCO2/aCO2 over the entire time series
+trtDF3 <- summaryBy(dLEAF+leaflit+leaf_pool~Date+Trt, FUN=c(mean, sd), data=dlai)
+trtDF3 <- trtDF3[complete.cases(trtDF3$dLEAF.mea),]
+trtDF4 <- data.frame(unique(trtDF3$Date), NA, NA, NA, NA, NA, NA, NA, NA)
+colnames(trtDF4) <- c("Date", "dLEAF_aCO2_mean", "dLEAF_eCO2_mean",
+                      "dLEAF_aCO2_sd", "dLEAF_eCO2_sd",
+                      "lit_aCO2_mean", "lit_eCO2_mean",
+                      "lit_aCO2_sd", "lit_eCO2_sd")
 
+for (i in trtDF4$Date) {
+    trtDF4[trtDF4$Date == i, "dLEAF_aCO2_mean"] <- trtDF3$dLEAF.mean[trtDF3$Date == i & trtDF3$Trt== "Amb"]
+    trtDF4[trtDF4$Date == i, "dLEAF_eCO2_mean"] <- trtDF3$dLEAF.mean[trtDF3$Date == i & trtDF3$Trt == "Elev"]
+    
+    trtDF4[trtDF4$Date == i, "dLEAF_aCO2_sd"] <- trtDF3$dLEAF.sd[trtDF3$Date == i & trtDF3$Trt== "Amb"]
+    trtDF4[trtDF4$Date == i, "dLEAF_eCO2_sd"] <- trtDF3$dLEAF.sd[trtDF3$Date == i & trtDF3$Trt == "Elev"]
+    
+    trtDF4[trtDF4$Date == i, "lit_aCO2_mean"] <- trtDF3$leaflit.mean[trtDF3$Date == i & trtDF3$Trt== "Amb"]
+    trtDF4[trtDF4$Date == i, "lit_eCO2_mean"] <- trtDF3$leaflit.mean[trtDF3$Date == i & trtDF3$Trt == "Elev"]
+    
+    trtDF4[trtDF4$Date == i, "lit_aCO2_sd"] <- trtDF3$leaflit.sd[trtDF3$Date == i & trtDF3$Trt== "Amb"]
+    trtDF4[trtDF4$Date == i, "lit_eCO2_sd"] <- trtDF3$leaflit.sd[trtDF3$Date == i & trtDF3$Trt == "Elev"]
+}
+
+trtDF4$dleaf_ratio <- with(trtDF4, dLEAF_eCO2_mean/dLEAF_aCO2_mean)
+trtDF4$lit_ratio <- with(trtDF4, lit_eCO2_mean/lit_aCO2_mean)
+
+### test the slope
+mod5.lm <- lm(dleaf_ratio ~ Date, data=trtDF4)
+
+summary(mod5.lm)
+a5 <- coefficients(mod5.lm)[[2]]
+b5 <- coefficients(mod5.lm)[[1]]
+rsq5 <- summary(mod5.lm)$adj.r.squared
+
+mod6.lm <- lm(lit_ratio ~ Date, data=trtDF4)
+
+summary(mod6.lm)
+a6 <- coefficients(mod6.lm)[[2]]
+b6 <- coefficients(mod6.lm)[[1]]
+rsq6 <- summary(mod6.lm)$adj.r.squared
+
+p5 <- ggplot(trtDF4) +
+    geom_point(aes(Date, dleaf_ratio)) +
+    geom_smooth(aes(Date, dleaf_ratio), method = lm)+
+    labs(x="Year", y="change in LAI eCO2/aCO2")+
+    theme_linedraw()+
+    theme(panel.grid.minor=element_blank(),
+          axis.title.x = element_text(size=14), 
+          axis.text.x = element_text(size=12),
+          axis.text.y=element_text(size=12),
+          axis.title.y=element_text(size=14),
+          legend.text=element_text(size=12),
+          legend.title=element_text(size=14),
+          panel.grid.major=element_blank(),
+          legend.position="none")+
+    geom_hline(yintercept = 1.0)+
+    annotate(geom="text", x=as.Date("2013-06-01"), y=20, 
+             label=paste0("y = ", round(a5,4), "x + ", round(b5,4)), 
+             color="black") +
+    annotate(geom="text", x=as.Date("2013-06-01"), y=18, 
+             label=paste0("r2 = ", round(rsq5, 2), ", p > 0.1"))
+
+
+p6 <- ggplot(trtDF4) +
+    geom_point(aes(Date, lit_ratio)) +
+    geom_smooth(aes(Date, lit_ratio), method = lm)+
+    labs(x="Year", y="leaflitter eCO2/aCO2")+
+    theme_linedraw()+
+    theme(panel.grid.minor=element_blank(),
+          axis.title.x = element_text(size=14), 
+          axis.text.x = element_text(size=12),
+          axis.text.y=element_text(size=12),
+          axis.title.y=element_text(size=14),
+          legend.text=element_text(size=12),
+          legend.title=element_text(size=14),
+          panel.grid.major=element_blank(),
+          legend.position="none")+
+    geom_hline(yintercept = 1.0)+
+    annotate(geom="text", x=as.Date("2013-06-01"), y=1.6, 
+             label=paste0("y = ", round(a6,4), "x + ", round(b6,4)), 
+             color="black") +
+    annotate(geom="text", x=as.Date("2013-06-01"), y=1.55, 
+             label=paste0("r2 = ", round(rsq6, 2), ", p < 0.0001"))
+
+
+pdf("output/change_lai_and_litter_ratio_over_time_all_time_points.pdf")
+plot_grid(p5, p6,
+          labels="", ncol=1, align="v", axis = "l")
+
+dev.off()
+
+
+### repeat remko's GCB Figure 5
+### i.e. total annual litter production / mean LAI
+### and leaf lifespan
+
+## all
+lai1 <- summaryBy(LAI~Ring, data=dlai, FUN=mean, na.rm=T)
+
+# Litter
+lit <- subset(dlai, !is.na(Days))
+lit$dLAIlitter <- with(lit, leaflit / c_fraction * (10^-4 * SLA))
+
+
+lagg <- summaryBy(leaflit + dLEAF + dLAI + dLAIlitter + Days ~ Ring, FUN=sum, keep.names=TRUE,
+                  data=lit)
+trapArea <- 0.1979 # g m-2 year-1
+
+lagg$Litter_annual <- (lagg$leaflit / trapArea) * 365.25 / lagg$Days
+lagg$LAIlitter_annual <- lagg$dLAIlitter * 365.25 / lagg$Days 
+
+lai1 <- merge(lai1, lagg[,c("Ring","LAIlitter_annual")])
+
+# Leaf lifespan
+lai1$LL <- with(lai1, LAI.mean / LAIlitter_annual)
+
+
+### subset pre-2014
+dlai_pre <- subset(dlai, Year < 2014)
+lai2 <- summaryBy(LAI~Ring, data=dlai_pre, FUN=mean, na.rm=T)
+
+# Litter
+lit <- subset(dlai_pre, !is.na(Days))
+lit$dLAIlitter <- with(lit, leaflit / c_fraction * (10^-4 * SLA))
+
+lagg <- summaryBy(leaflit + dLEAF + dLAI + dLAIlitter + Days ~ Ring, FUN=sum, keep.names=TRUE,
+                  data=lit)
+
+lagg$Litter_annual <- (lagg$leaflit / trapArea) * 365.25 / lagg$Days
+lagg$LAIlitter_annual <- lagg$dLAIlitter * 365.25 / lagg$Days 
+
+lai2 <- merge(lai2, lagg[,c("Ring","LAIlitter_annual")])
+
+# Leaf lifespan
+lai2$LL <- with(lai2, LAI.mean / LAIlitter_annual)
+
+
+### subset 2012-15
+dlai_mid <- subset(dlai, Year < 2016)
+lai4 <- summaryBy(LAI~Ring, data=dlai_mid, FUN=mean, na.rm=T)
+
+# Litter
+lit <- subset(dlai_mid, !is.na(Days))
+lit$dLAIlitter <- with(lit, leaflit / c_fraction * (10^-4 * SLA))
+
+
+lagg <- summaryBy(leaflit + dLEAF + dLAI + dLAIlitter + Days ~ Ring, FUN=sum, keep.names=TRUE,
+                  data=lit)
+
+lagg$Litter_annual <- (lagg$leaflit / trapArea) * 365.25 / lagg$Days
+lagg$LAIlitter_annual <- lagg$dLAIlitter * 365.25 / lagg$Days 
+
+lai4 <- merge(lai4, lagg[,c("Ring","LAIlitter_annual")])
+
+# Leaf lifespan
+lai4$LL <- with(lai4, LAI.mean / LAIlitter_annual)
+
+
+### subset post 2016
+dlai_pos <- subset(dlai, Year >= 2016)
+lai3 <- summaryBy(LAI~Ring, data=dlai_pos, FUN=mean, na.rm=T)
+
+# Litter
+lit <- subset(dlai_pos, !is.na(Days))
+lit$dLAIlitter <- with(lit, leaflit / c_fraction * (10^-4 * SLA))
+
+
+lagg <- summaryBy(leaflit + dLEAF + dLAI + dLAIlitter + Days ~ Ring, FUN=sum, keep.names=TRUE,
+                  data=lit)
+
+lagg$Litter_annual <- (lagg$leaflit / trapArea) * 365.25 / lagg$Days
+lagg$LAIlitter_annual <- lagg$dLAIlitter * 365.25 / lagg$Days 
+
+lai3 <- merge(lai3, lagg[,c("Ring","LAIlitter_annual")])
+
+# Leaf lifespan
+lai3$LL <- with(lai3, LAI.mean / LAIlitter_annual)
+
+lai4$Trt <- lai1$Trt <- lai2$Trt <- lai3$Trt <- "Amb"
+lai4$Trt[lai4$Ring%in%c(1,4,5)] <- lai1$Trt[lai1$Ring%in%c(1,4,5)] <- lai2$Trt[lai2$Ring%in%c(1,4,5)] <- lai3$Trt[lai3$Ring%in%c(1,4,5)] <- "Ele"
+
+
+p7 <- ggplot(lai1) +
+    geom_point(aes(Trt, LL)) +
+    ylab("leaf life span (yr)")+
+    xlab("2012-2018")
+
+p8 <- ggplot(lai2) +
+    geom_point(aes(Trt, LL)) +
+    ylab("leaf life span (yr)")+
+    xlab("2012-2014")
+
+p9 <- ggplot(lai4) +
+    geom_point(aes(Trt, LL)) +
+    ylab("leaf life span (yr)")+
+    xlab("2012-2015")
+
+p10 <- ggplot(lai3) +
+    geom_point(aes(Trt, LL)) +
+    ylab("leaf life span (yr)")+
+    xlab("2016-2018")
+
+pdf("output/leaf_life_span.pdf")
+plot_grid(p8, p9, p10,
+          labels="", ncol=1, align="v", axis = "l")
+
+dev.off()
+
+# stats
+t.test(LL ~ Trt,data=lai3)
+anova.lme(lme(LL ~ Trt, random=~1|Ring, 
+    data=lai3, 
+    method="REML"))
+
+### only 2016-17
+dlai_pos <- subset(dlai, Year >= 2016 & Year < 2018)
+lai5 <- summaryBy(LAI~Ring, data=dlai_pos, FUN=mean, na.rm=T)
+
+# Litter
+lit <- subset(dlai_pos, !is.na(Days))
+lit$dLAIlitter <- with(lit, leaflit / c_fraction * (10^-4 * SLA))
+
+
+lagg <- summaryBy(leaflit + dLEAF + dLAI + dLAIlitter + Days ~ Ring, FUN=sum, keep.names=TRUE,
+                  data=lit)
+
+lagg$Litter_annual <- (lagg$leaflit / trapArea) * 365.25 / lagg$Days
+lagg$LAIlitter_annual <- lagg$dLAIlitter * 365.25 / lagg$Days 
+
+lai5 <- merge(lai5, lagg[,c("Ring","LAIlitter_annual")])
+
+# Leaf lifespan
+lai5$LL <- with(lai5, LAI.mean / LAIlitter_annual)
+
+lai5$Trt <- "Amb"
+lai5$Trt[lai5$Ring%in%c(1,4,5)] <- "Ele"
+
+
+p11 <- ggplot(lai5) +
+    geom_point(aes(Trt, LL)) +
+    ylab("leaf life span (yr)")+
+    xlab("2016-2017")
+
+plot(p11)
+
+
+### check the change in leaf life span over two periods
+### compare 2016-18 against 2012-14
+diffDF <- lai4
+diffDF$LL_after <- lai5$LL
+diffDF$diff <- with(diffDF, LL_after-LL)
+
+# stats
+t.test(diff ~ Trt,data=diffDF)
+anova.lme(lme(diff ~ Trt, random=~1|Ring, 
+              data=diffDF, 
+              method="REML"))
+
+p12 <- ggplot(diffDF) +
+    geom_point(aes(Trt, diff)) +
+    ylab(expression(paste(Delta, " leaf life span (yr)")))+
+    xlab("2016 to 2018 over 2012 to 2015")
+
+plot(p12)
