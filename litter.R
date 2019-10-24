@@ -17,6 +17,11 @@ if(!dir.exists("output")) {
     dir.create("output", showWarnings = FALSE)
 }
 
+#### Create download folder
+if(!dir.exists("download")) {
+    dir.create("download", showWarnings = FALSE)
+}
+
 ################################ read in data ########################################
 #### prepare necessary dataframes
 source("make_litter_c_flux.R")
