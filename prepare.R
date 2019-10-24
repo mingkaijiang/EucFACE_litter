@@ -15,6 +15,9 @@ if(!dir.exists("download")) {
     dir.create("download", showWarnings = FALSE)
 }
 
+
+setToPath("download")
+
 # ring diameter m
 ring_diameter <- 25
 

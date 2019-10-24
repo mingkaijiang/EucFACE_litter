@@ -3,7 +3,7 @@ make_sapwood_c_n_fraction <- function() {
     downloadHIEv(hiev=searchHIEv("FACE_P0079_RA_SAPWOOD_N_RAW_2015-11_v1"))
     
     ### read df
-    myDF <- read.csv("FACE_P0079_RA_SAPWOOD_N_RAW_2015-11_v1.csv")
+    myDF <- read.csv("download/FACE_P0079_RA_SAPWOOD_N_RAW_2015-11_v1.csv")
     
     ### outdf
     outDF <- data.frame(c("C","N"), NA, NA)
