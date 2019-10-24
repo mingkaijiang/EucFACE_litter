@@ -23,14 +23,14 @@ delta_wood <- assign_rainfall(wood=wood_production_flux,
                               rainfall=rain)
 
 ### look at the difference
-wood_diff <- summaryBy(delta+Rainfall~year+Trt, data=delta_wood, FUN=c(mean,sd))
+wood_trt <- summaryBy(delta+Rainfall~year+Trt, data=delta_wood, FUN=c(mean,sd))
 
 
 p1 <- ggplot() +
-    geom_point(wood_diff, mapping=aes(x=Rainfall.mean, y=delta.mean, col=Trt,
+    geom_point(wood_trt, mapping=aes(x=Rainfall.mean, y=delta.mean, col=Trt,
                                       shape=as.factor(year)), size = 4,
                position=position_dodge(width=1))+
-    geom_errorbar(data=wood_diff, mapping=aes(x=Rainfall.mean, ymin=delta.mean-delta.sd,
+    geom_errorbar(data=wood_trt, mapping=aes(x=Rainfall.mean, ymin=delta.mean-delta.sd,
                                               ymax=delta.mean+delta.sd, color=Trt),
                   position=position_dodge(width=1))+
     xlab("Rain (mm)") +
@@ -55,6 +55,34 @@ plot(p1)
 dev.off()
 
 
+### calculate CO2 response
+wood_diff <- subset(wood_trt, Trt=="amb")
+tmp <- subset(wood_trt, Trt=="ele")
+wood_diff$ele <- tmp$delta.mean
+wood_diff$CO2_effect <- wood_diff$ele - wood_diff$delta.mean
 
+p2 <- ggplot() +
+    geom_point(wood_diff, mapping=aes(x=Rainfall.mean, y=CO2_effect, 
+                                      shape=as.factor(year)), size = 4,
+               position=position_dodge(width=1))+
+    xlab("Rain (mm)") +
+    ylab(expression(Delta*C[stem]*" ( g C " * m^2 * " " * yr^1 * ")"))+
+    scale_shape_manual(name="Year", values=c(15, 16, 17, 18, 25, 23, 21),
+                       label=c("2012", "2013", "2014", "2015", "2016", "2017", "2018"))+
+    theme(panel.grid.minor=element_blank(),
+          axis.title.x = element_text(size=14), 
+          axis.text.x = element_text(size=12),
+          axis.text.y=element_text(size=12),
+          axis.title.y=element_text(size=14),
+          legend.text=element_text(size=14),
+          legend.title=element_text(size=12),
+          panel.grid.major=element_blank(),
+          legend.position="bottom",
+          legend.text.align=0)
+
+
+pdf("output/co2_response_rainfall_vs_delta_Cstem.pdf")
+plot(p2)
+dev.off()
 
 
