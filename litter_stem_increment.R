@@ -116,7 +116,7 @@ legend("topright",col=c("black","red"),legend=c("Amb","Elev"),pch=1)
 
 
 ### get annual precipitation
-rainDF <- read.csv("rainfall_data_monthly.csv")
+rainDF <- read.csv("temp_files/rainfall_data_monthly.csv")
 rainDF$year <- year(rainDF$Month)
 
 rain <- summaryBy(Rain_mm_Tot~year, FUN=sum, data=rainDF, na.rm=T)
