@@ -17,7 +17,7 @@ make_wood_production_flux <- function(wood_pool){
     # Length of period
     prod$length <- as.numeric(prod$Date - prod$Start_date)
     # C increment in mg C d-1
-    prod$wood_production_flux <- (prod$wood_pool - prod$prev_biom) * 1000/prod$length
+    prod$wood_production_flux <- (prod$wood_pool - prod$prev_biom) * 1000 / prod$length
     
     #- format dataframe to return
     wp.out <- prod[,c("Start_date", "Date", "Date", "Ring", "wood_production_flux")]
