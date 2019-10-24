@@ -66,7 +66,7 @@ p2 <- ggplot() +
                                       shape=as.factor(year)), size = 4,
                position=position_dodge(width=1))+
     xlab("Rain (mm)") +
-    ylab(expression(Delta*C[stem]*" ( g C " * m^2 * " " * yr^1 * ")"))+
+    ylab(expression(CO[2] * "response on " * Delta*C[stem] *" ( g C " * m^2 * " " * yr^1 * ")"))+
     scale_shape_manual(name="Year", values=c(15, 16, 17, 18, 25, 23, 21),
                        label=c("2012", "2013", "2014", "2015", "2016", "2017", "2018"))+
     theme(panel.grid.minor=element_blank(),
