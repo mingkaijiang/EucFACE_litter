@@ -14,7 +14,14 @@ rain <- calculate_ros_data()
 
 ################################################################################################
 #### investigate CO2 x drought interaction on wood increment
-wood_increment_CO2_drought_interaction(rain=rain)
+wood.increment <- wood_increment_CO2_drought_interaction(rain=rain)
+
 
 #### investigate CO2 x drought interaction on leaflitter and total litterfall
-litterfall_CO2_drought_interaction(rain=rain)
+litter.increment <- litterfall_CO2_drought_interaction(rain=rain)
+
+
+#### combine all aboveground components
+combine_aboveground_CO2_drought_interaction(wood=wood.increment, 
+                                            litter=litter.increment)
+

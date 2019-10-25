@@ -3,6 +3,8 @@ make_litter_c_flux <- function(c_fraction, frass_basket_area){
     # download_leaflitter()
     
     #### read in data
+    f17 <- downloadCSV("FACE_P0017_RA_Litter_20170101-20171130-L1.csv")
+    f17$Date <- parse_date_time(f17$Date,"d m y")
     f16 <- downloadCSV("FACE_P0017_RA_Litter_20160101-20161212-L1-V3.csv")
     f16$Date <- parse_date_time(f16$Date,"d m y")
     f15 <- downloadCSV("FACE_P0017_RA_Litter_20150101-20151217-L1-V2.csv")
@@ -18,8 +20,14 @@ make_litter_c_flux <- function(c_fraction, frass_basket_area){
     colnames(f15) <- c("Ring", "Date", "Trap", "Twig", "Bark", "Seed", "Leaf", "Other", "Insect", "Comments", "days.past","Source")
     colnames(f16) <- c("Ring", "Date", "Trap", "Twig", "Bark", "Seed", "Leaf", "Other", "Insect", "Comments", "days.past","Source")
     
+    # extract the flower buds from 2017
+    f17buds <- f17[,c("Ring","Date","Trap","Flower Buds")]
+    names(f17buds)[4] <- "Flower_Buds"
+    f17 <- f17[,-10]
+    
     #### Merge the files
-    litter_raw <- rbind(f13, f14, f15, f16) 
+    litter_raw <- rbind(f13, f14, f15, f16, f17) 
+    litter_raw <- merge(litter_raw,f17buds,by=c("Ring","Date","Trap"),all.x=T)
     
     # glitch fix
     litter_raw$Ring <- as.character(litter_raw$Ring)
@@ -33,7 +41,9 @@ make_litter_c_flux <- function(c_fraction, frass_basket_area){
     litter_raw$Other <- as.numeric(litter_raw$Other)
     litter_raw$Insect <- as.numeric(litter_raw$Insect)
     
-    # remove two data points where big branches fall into litter bascket
+    # remove three data points where big branches fall into litter bascket
+    line.num <- which.max(litter_raw$Twig)
+    litter_raw <- litter_raw[-line.num,]
     line.num <- which.max(litter_raw$Twig)
     litter_raw <- litter_raw[-line.num,]
     line.num <- which.max(litter_raw$Twig)

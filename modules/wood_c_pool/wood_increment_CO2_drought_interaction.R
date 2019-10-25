@@ -1,4 +1,4 @@
-wood_increment_CO2_drought_interaction(rain) {
+wood_increment_CO2_drought_interaction <- function (rain) {
     
     
     ### calculate wood C pool
@@ -151,6 +151,9 @@ wood_increment_CO2_drought_interaction(rain) {
            height = 18,
            units = "cm",
            dpi = 300)
+    
+    ### return wood summary DF for later processing
+    return(delta_wood)
     
     
 }
