@@ -42,12 +42,17 @@ make_litter_c_flux <- function(c_fraction, frass_basket_area){
     litter_raw$Insect <- as.numeric(litter_raw$Insect)
     
     # remove three data points where big branches fall into litter bascket
-    line.num <- which.max(litter_raw$Twig)
-    litter_raw <- litter_raw[-line.num,]
-    line.num <- which.max(litter_raw$Twig)
-    litter_raw <- litter_raw[-line.num,]
-    line.num <- which.max(litter_raw$Twig)
-    litter_raw <- litter_raw[-line.num,]
+    #line.num <- which.max(litter_raw$Twig)
+    #litter_raw <- litter_raw[-line.num,]
+    #line.num <- which.max(litter_raw$Twig)
+    #litter_raw <- litter_raw[-line.num,]
+    #line.num <- which.max(litter_raw$Twig)
+    #litter_raw <- litter_raw[-line.num,]
+    
+    ### remove stuffs
+    # set to NA three data points where big branches fall into litter basket (> 300 g)
+    #with(litter_all,plot(Date,twig_flux))
+    litter_raw$Twig[litter_raw$Twig > 300] <- NA
     
     # Conversion factor from g basket-1 to mg m-2
     conv <- c_fraction * 1000 / frass_basket_area

@@ -24,6 +24,10 @@ litterfall_CO2_drought_interaction <- function (rain) {
     lit2$End_date <- parse_date_time(substr(lit2$Source,31,38),"y m d")
     lit2$days.past <- with(lit2,as.numeric(End_date - Start_date))
     
+    # remove one data point where big branch fell into litter basket ?
+    # This is a bit debatable
+    lit2$Twig[lit2$Twig > 60] <- NA
+    
     # Conversion factor from g basket-1 to mg m-2
     conv <- c_fraction * 1000 / frass_basket_area
     
@@ -49,18 +53,22 @@ litterfall_CO2_drought_interaction <- function (rain) {
     litter_all$Year <- year(litter_all$Date)
     litter_all$CO2Treat <- "Amb"
     litter_all$CO2Treat[litter_all$Ring %in% c(1,4,5)] <- "Elev"
+    
+    
+    ### calculate sum of flux over a period
     litter_all$leaf_tot <- with(litter_all,leaf_flux*Days/1000)
     litter_all$twig_tot <- with(litter_all,twig_flux*Days/1000)
     litter_all$bark_tot <- with(litter_all,bark_flux*Days/1000)
     litter_all$tot <- with(litter_all,leaf_tot+twig_tot+bark_tot)
+
     
     ### for output
     litter_ann <- summaryBy(tot+leaf_tot+twig_tot+bark_tot+Days~Year+Ring+CO2Treat, 
                             FUN=sum, data=litter_all, keep.names=T, na.rm=T)
     
-    litter_ann$leaf_ann <- with(litter_ann, leaf_tot/Days*365)
-    litter_ann$twig_ann <- with(litter_ann, twig_tot/Days*365)
-    litter_ann$bark_ann <- with(litter_ann, bark_tot/Days*365)
+    litter_ann$leaf_ann <- with(litter_ann, leaf_tot)#/Days*365)
+    litter_ann$twig_ann <- with(litter_ann, twig_tot)#/Days*365)
+    litter_ann$bark_ann <- with(litter_ann, bark_tot)#/Days*365)
     litter_ann$tot_ann <- with(litter_ann, leaf_ann+twig_ann+bark_ann)
     
     
