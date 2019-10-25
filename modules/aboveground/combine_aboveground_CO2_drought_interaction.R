@@ -52,7 +52,7 @@ combine_aboveground_CO2_drought_interaction <- function(wood, litter) {
         geom_errorbar(data=plotDF1, mapping=aes(x=x.brk, ymin=mean-sd, ymax=mean+sd, group=Trt), 
                       width=0.1, size=0.8, color="black", stat = "identity") + 
         geom_point(data=plotDF1, mapping=aes(x=x.brk, y=mean), size=2, shape=21, fill="white")+
-        xlab("") + ylab(expression(paste(CO[2], " effect (g C ", m^-2, " ", yr^-1, ")"))) +
+        xlab("") + ylab(expression(Delta * C[abg] * " (g C " * m^-2 * " " * yr^-1 * ")")) +
         scale_x_continuous(breaks = c(2013, 2014, 2015, 2016, 2017, 2018))+
         scale_alpha_manual(name="Treatment", values=c(1.0, 0.4))+
         theme_linedraw() +
@@ -69,12 +69,9 @@ combine_aboveground_CO2_drought_interaction <- function(wood, litter) {
         guides(fill=guide_legend(ncol=2),
                alpha=guide_legend(ncol=1))
 
-    plot(p1)
+    #plot(p1)
     
 
-    
-    
-    
     ### save output
     ggsave(filename = "output/aboveground_increment_plot.pdf", 
            plot = p1,

@@ -60,7 +60,7 @@ litterfall_CO2_drought_interaction <- function (rain) {
     
     litter_ann$leaf_ann <- with(litter_ann, leaf_tot/Days*365)
     litter_ann$twig_ann <- with(litter_ann, twig_tot/Days*365)
-    litter_ann$bark_ann <- with(litter_ann, twig_tot/Days*365)
+    litter_ann$bark_ann <- with(litter_ann, bark_tot/Days*365)
     litter_ann$tot_ann <- with(litter_ann, leaf_ann+twig_ann+bark_ann)
     
     
